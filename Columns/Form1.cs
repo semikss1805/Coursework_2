@@ -1,24 +1,17 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace Tetris
+namespace Columns
 {
     public partial class Form1 : Form
     {
-        Shape currentShape;
+        AbstractShape currentShape;
         int size,
              interval,
              x,
              y;
         int[,] map;
-        int lineRemoved;
         int score;
         public Form1()
         {
@@ -33,11 +26,11 @@ namespace Tetris
             map = new int[y + 1, x];
 
             score = 0;
-            lineRemoved = 0;
             label1.Text = "Score: " + score;
-            label2.Text = "Lines : " + lineRemoved;
 
-            currentShape = new Shape(1, 0);
+            currentShape = new StandardShape(1, 0);
+            comboBox1.SelectedIndex = 0;
+
             this.KeyDown += new KeyEventHandler(KeyFunc);
 
             interval = 400;
@@ -56,14 +49,20 @@ namespace Tetris
                     case Keys.Down:
                         Update(this, new EventArgs());
                         break;
-                    case Keys.Up:
+                    case Keys.Space:
                         if (!IsOverlapping())
                         {
                             ResetArea();
-                            currentShape.RotateShape();
+                            currentShape.SecondAction();
                             Merge();
                             Invalidate();
                         }
+                        break;
+                    case Keys.Up:
+                        ResetArea();
+                        currentShape.MainAction();
+                        Merge();
+                        Invalidate();
                         break;
                     case Keys.Left:
                         if (!CollideHor(-1))
@@ -99,17 +98,16 @@ namespace Tetris
             {
                 Merge();
                 SliceMap();
+                label1.Text = "Score: " + score;
                 timer1.Interval = 1000;
                 currentShape.ResetShape(1, 0);
 
                 if (Collide())
                 {
                     PauseOrPlay(this, new EventArgs());
-                    MessageBox.Show($"       GAMEOVER ( ✖ _ ✖ )\n\tScore: {score}\n\tLines :{lineRemoved}");
+                    MessageBox.Show($"       GAMEOVER ( ✖ _ ✖ )\n\tScore: {score}");
                     score = 0;
-                    lineRemoved = 0;
                     label1.Text = "Score: " + score;
-                    label2.Text = "Lines : " + lineRemoved;
                     timer1.Interval = 400;
                     for (int i = 0; i < y; i++)
                     {
@@ -160,7 +158,7 @@ namespace Tetris
                         toRemove[i, k] = true;
                     }
                 }
-                
+
             }
 
             //vertical
@@ -226,7 +224,7 @@ namespace Tetris
                 {
                     for (int k = 1; k <= count; k++)
                     {
-                        toRemove[d - k,x - k] = true;
+                        toRemove[d - k, x - k] = true;
                     }
                 }
             }
@@ -273,6 +271,7 @@ namespace Tetris
                         {
                             map[k, j] = map[k - 1, j];
                         }
+                        score++;
                         flag = true;
                     }
                 }
@@ -298,14 +297,6 @@ namespace Tetris
                                 return true;
                             }
                         }
-                        if (i == y)
-                        {
-                            return true;
-                        }
-                    }
-                    if (j == x)
-                    {
-                        return true;
                     }
                 }
             }
@@ -390,34 +381,29 @@ namespace Tetris
             {
                 for (int j = 0; j < currentShape.sizeNextMatrix; j++)
                 {
-                    if (currentShape.nextMatrix[i, j] == 1)
+                    Brush brush = Brushes.Gray;
+                    switch (currentShape.nextMatrix[i, j])
                     {
-                        e.FillRectangle(Brushes.DeepSkyBlue, new Rectangle(350 + j * size + 3, 150 + i * size + 3, size - 3, size - 3));
+                        case 1:
+                            brush = Brushes.DeepSkyBlue;
+                            break;
+                        case 2:
+                            brush = Brushes.DarkRed;
+                            break;
+                        case 3:
+                            brush = Brushes.DarkOrange;
+                            break;
+                        case 4:
+                            brush = Brushes.DarkGreen;
+                            break;
+                        case 5:
+                            brush = Brushes.Yellow;
+                            break;
+                        default:
+                            break;
                     }
-                    if (currentShape.nextMatrix[i, j] == 2)
-                    {
-                        e.FillRectangle(Brushes.LightBlue, new Rectangle(375 + j * size + 3, 150 + i * size + 3, size - 3, size - 3));
-                    }
-                    if (currentShape.nextMatrix[i, j] == 3)
-                    {
-                        e.FillRectangle(Brushes.DarkOrange, new Rectangle(375 + j * size + 3, 150 + i * size + 3, size - 3, size - 3));
-                    }
-                    if (currentShape.nextMatrix[i, j] == 4)
-                    {
-                        e.FillRectangle(Brushes.BlanchedAlmond, new Rectangle(375 + j * size + 3, 150 + i * size + 3, size - 3, size - 3));
-                    }
-                    if (currentShape.nextMatrix[i, j] == 5)
-                    {
-                        e.FillRectangle(Brushes.LightGreen, new Rectangle(375 + j * size + 3, 150 + i * size + 3, size - 3, size - 3));
-                    }
-                    if (currentShape.nextMatrix[i, j] == 6)
-                    {
-                        e.FillRectangle(Brushes.Violet, new Rectangle(375 + j * size + 3, 175 + i * size + 3, size - 3, size - 3));
-                    }
-                    if (currentShape.nextMatrix[i, j] == 7)
-                    {
-                        e.FillRectangle(Brushes.FloralWhite, new Rectangle(375 + j * size + 3, 150 + i * size + 3, size - 3, size - 3));
-                    }
+                    e.FillRectangle(brush, new Rectangle(350 + j * size + 3, 150 + i * size + 3, size - 3, size - 3));
+
                 }
             }
         }
@@ -470,6 +456,39 @@ namespace Tetris
                 }
             }
         }
+
+        private void comboBox1_KeyDown(object sender, KeyEventArgs e)
+        {
+            e.Handled = true;
+            KeyFunc(sender, e);
+            return;
+        }
+
+        private void comboBox1_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            ResetArea();
+
+            switch (comboBox1.SelectedIndex)
+            {
+                case 0:
+                    currentShape = new StandardShape(1, 0);
+                    break;
+                case 1:
+                    currentShape = new ReversbleShape(1, 0);
+                    break;
+                case 2:
+                    currentShape = new RotatebleShape(1, 0);
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        private void label3_Click(object sender, EventArgs e)
+        {
+
+        }
+
         public void DrawGrid(Graphics g)
         {
 
@@ -505,6 +524,7 @@ namespace Tetris
                 timer1.Enabled = false;
                 pauseLabel.Visible = false;
                 playButton.Text = "▶";
+                Focus();
             }
             else
             {
